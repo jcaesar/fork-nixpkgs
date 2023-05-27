@@ -70,14 +70,15 @@ stdenv.mkDerivation (finalAttrs: {
     pkg-config flex bison dtc meson ninja
 
     # Don't change this to python3 and python3.pkgs.*, breaks cross-compilation
-    python3Packages.python python3Packages.sphinx python3Packages.sphinx-rtd-theme
+    python3Packages.python
   ]
     ++ lib.optionals gtkSupport [ wrapGAppsHook3 ]
+    ++ lib.optionals enableDocs [ texinfo python3Packages.sphinx python3Packages.sphinx-rtd-theme ]
     ++ lib.optionals hexagonSupport [ glib ]
     ++ lib.optionals stdenv.isDarwin [ sigtool ];
 
   buildInputs = [ dtc zlib glib pixman
-    vde2 texinfo lzo snappy libtasn1
+    vde2 lzo snappy libtasn1
     gnutls nettle curl libslirp
   ]
     ++ lib.optionals ncursesSupport [ ncurses ]
