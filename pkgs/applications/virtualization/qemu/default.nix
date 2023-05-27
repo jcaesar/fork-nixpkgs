@@ -120,6 +120,7 @@ stdenv.mkDerivation (finalAttrs: {
     ++ lib.optionals capstoneSupport [ capstone ];
 
   dontUseMesonConfigure = true; # meson's configurePhase isn't compatible with qemu build
+  dontAddStaticConfigureFlags = true;
 
   outputs = [ "out" ] ++ lib.optional guestAgentSupport "ga";
   # On aarch64-linux we would shoot over the Hydra's 2G output limit.
@@ -198,7 +199,8 @@ stdenv.mkDerivation (finalAttrs: {
     ++ lib.optional canokeySupport "--enable-canokey"
     ++ lib.optional capstoneSupport "--enable-capstone"
     ++ lib.optional (!pluginsSupport) "--disable-plugins"
-    ++ lib.optional (!enableBlobs) "--disable-install-blobs";
+    ++ lib.optional (!enableBlobs) "--disable-install-blobs"
+    ++ lib.optional stdenv.hostPlatform.isStatic "--static";
 
   dontWrapGApps = true;
 
