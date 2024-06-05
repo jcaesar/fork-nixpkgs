@@ -78,7 +78,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [
     makeWrapper removeReferencesTo
-    pkg-config flex bison dtc meson ninja
+    pkg-config flex bison meson ninja
 
     # Don't change this to python3 and python3.pkgs.*, breaks cross-compilation
     python3Packages.python
@@ -86,9 +86,10 @@ stdenv.mkDerivation (finalAttrs: {
     ++ lib.optionals gtkSupport [ wrapGAppsHook3 ]
     ++ lib.optionals enableDocs [ texinfo python3Packages.sphinx python3Packages.sphinx-rtd-theme ]
     ++ lib.optionals hexagonSupport [ glib ]
-    ++ lib.optionals stdenv.isDarwin [ sigtool ];
+    ++ lib.optionals stdenv.isDarwin [ sigtool ]
+    ++ lib.optionals (!userOnly) [ dtc ];
 
-  buildInputs = [ dtc zlib glib pixman
+  buildInputs = [ zlib glib pixman
     vde2 lzo snappy libtasn1
     gnutls nettle curl libslirp
   ]
@@ -106,7 +107,8 @@ stdenv.mkDerivation (finalAttrs: {
     ++ lib.optionals smartcardSupport [ libcacard ]
     ++ lib.optionals spiceSupport [ spice-protocol spice ]
     ++ lib.optionals usbredirSupport [ usbredir ]
-    ++ lib.optionals stdenv.isLinux [ libaio libcap_ng libcap attr ]
+    ++ lib.optionals stdenv.isLinux [ libcap_ng libcap attr ]
+    ++ lib.optionals (stdenv.isLinux && !userOnly) [ libaio ]
     ++ lib.optionals xenSupport [ xen ]
     ++ lib.optionals cephSupport [ ceph ]
     ++ lib.optionals glusterfsSupport [ glusterfs libuuid ]
@@ -117,7 +119,8 @@ stdenv.mkDerivation (finalAttrs: {
     ++ lib.optionals smbdSupport [ samba ]
     ++ lib.optionals uringSupport [ liburing ]
     ++ lib.optionals canokeySupport [ canokey-qemu ]
-    ++ lib.optionals capstoneSupport [ capstone ];
+    ++ lib.optionals capstoneSupport [ capstone ]
+    ++ lib.optionals (!userOnly) [ dtc ];
 
   dontUseMesonConfigure = true; # meson's configurePhase isn't compatible with qemu build
   dontAddStaticConfigureFlags = true;
@@ -185,7 +188,7 @@ stdenv.mkDerivation (finalAttrs: {
     ++ lib.optional usbredirSupport "--enable-usb-redir"
     ++ lib.optional (hostCpuTargets != null) "--target-list=${lib.concatStringsSep "," hostCpuTargets}"
     ++ lib.optionals stdenv.isDarwin [ "--enable-cocoa" "--enable-hvf" ]
-    ++ lib.optional stdenv.isLinux "--enable-linux-aio"
+    ++ lib.optional (stdenv.isLinux && !userOnly) "--enable-linux-aio"
     ++ lib.optional gtkSupport "--enable-gtk"
     ++ lib.optional xenSupport "--enable-xen"
     ++ lib.optional cephSupport "--enable-rbd"
