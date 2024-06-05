@@ -5,45 +5,53 @@
 , makeWrapper, removeReferencesTo
 , attr, libcap, libcap_ng, socat, libslirp
 , CoreServices, Cocoa, Hypervisor, rez, setfile, vmnet
-, guestAgentSupport ? (with stdenv.hostPlatform; isLinux || isNetBSD || isOpenBSD || isSunOS || isWindows) && !toolsOnly
-, numaSupport ? stdenv.isLinux && !stdenv.isAarch32 && !toolsOnly, numactl
-, seccompSupport ? stdenv.isLinux && !toolsOnly, libseccomp
-, alsaSupport ? lib.hasSuffix "linux" stdenv.hostPlatform.system && !nixosTestRunner && !toolsOnly
-, pulseSupport ? !stdenv.isDarwin && !nixosTestRunner && !toolsOnly, libpulseaudio
-, pipewireSupport ? !stdenv.isDarwin && !nixosTestRunner && !toolsOnly, pipewire
-, sdlSupport ? !stdenv.isDarwin && !nixosTestRunner && !toolsOnly, SDL2, SDL2_image
-, jackSupport ? !stdenv.isDarwin && !nixosTestRunner && !toolsOnly, libjack2
-, gtkSupport ? !stdenv.isDarwin && !xenSupport && !nixosTestRunner && !toolsOnly, gtk3, gettext, vte, wrapGAppsHook3
-, vncSupport ? !nixosTestRunner && !toolsOnly, libjpeg, libpng
-, smartcardSupport ? !nixosTestRunner && !toolsOnly, libcacard
-, spiceSupport ? true && !nixosTestRunner && !toolsOnly, spice, spice-protocol
-, ncursesSupport ? !nixosTestRunner && !toolsOnly, ncurses
+, guestAgentSupport ? (with stdenv.hostPlatform; isLinux || isNetBSD || isOpenBSD || isSunOS || isWindows) && !minimal
+, numaSupport ? stdenv.isLinux && !stdenv.isAarch32 && !minimal, numactl
+, seccompSupport ? stdenv.isLinux && !minimal, libseccomp
+, alsaSupport ? lib.hasSuffix "linux" stdenv.hostPlatform.system && !nixosTestRunner && !minimal
+, pulseSupport ? !stdenv.isDarwin && !nixosTestRunner && !minimal, libpulseaudio
+, pipewireSupport ? !stdenv.isDarwin && !nixosTestRunner && !minimal, pipewire
+, sdlSupport ? !stdenv.isDarwin && !nixosTestRunner && !minimal, SDL2, SDL2_image
+, jackSupport ? !stdenv.isDarwin && !nixosTestRunner && !minimal, libjack2
+, gtkSupport ? !stdenv.isDarwin && !xenSupport && !nixosTestRunner && !minimal, gtk3, gettext, vte, wrapGAppsHook3
+, vncSupport ? !nixosTestRunner && !minimal, libjpeg, libpng
+, smartcardSupport ? !nixosTestRunner && !minimal, libcacard
+, spiceSupport ? true && !nixosTestRunner && !minimal, spice, spice-protocol
+, ncursesSupport ? !nixosTestRunner && !minimal, ncurses
 , usbredirSupport ? spiceSupport, usbredir
 , xenSupport ? false, xen
 , cephSupport ? false, ceph
 , glusterfsSupport ? false, glusterfs, libuuid
 , openGLSupport ? sdlSupport, mesa, libepoxy, libdrm
-, rutabagaSupport ? openGLSupport && !toolsOnly && lib.meta.availableOn stdenv.hostPlatform rutabaga_gfx, rutabaga_gfx
+, rutabagaSupport ? openGLSupport && !minimal && lib.meta.availableOn stdenv.hostPlatform rutabaga_gfx, rutabaga_gfx
 , virglSupport ? openGLSupport, virglrenderer
-, libiscsiSupport ? !toolsOnly, libiscsi
+, libiscsiSupport ? !minimal, libiscsi
 , smbdSupport ? false, samba
-, tpmSupport ? !toolsOnly
-, uringSupport ? stdenv.isLinux, liburing
-, canokeySupport ? !toolsOnly, canokey-qemu
-, capstoneSupport ? !toolsOnly, capstone
+, tpmSupport ? !minimal
+, uringSupport ? stdenv.isLinux && !userOnly, liburing
+, canokeySupport ? !minimal, canokey-qemu
+, capstoneSupport ? !minimal, capstone
 , pluginsSupport ? !stdenv.hostPlatform.isStatic
-, enableDocs ? true
-, enableTools ? true
-, enableBlobs ? true
+, enableDocs ? !minimal || toolsOnly
+, enableTools ? !minimal || toolsOnly
+, enableBlobs ? !minimal || toolsOnly
 , hostCpuOnly ? false
 , hostCpuTargets ? (if toolsOnly
                     then [ ]
                     else if hostCpuOnly
                     then (lib.optional stdenv.isx86_64 "i386-softmmu"
                           ++ ["${stdenv.hostPlatform.qemuArch}-softmmu"])
-                    else null)
+                    else if userOnly
+                    then map (system: (lib.systems.elaborate { inherit system; }).qemuArch + "-linux-user") [
+                      "aarch64-linux" "armv7l-linux"
+                      "i386-linux" "x86_64-linux"
+                      "powerpc-linux" "powerpc64-linux" "powerpc64le-linux"
+                      "riscv32-linux" "riscv64-linux"
+                    ] else null)
 , nixosTestRunner ? false
 , toolsOnly ? false
+, userOnly ? false
+, minimal ? toolsOnly || userOnly
 , gitUpdater
 , qemu-utils # for tests attribute
 }:
@@ -253,7 +261,7 @@ stdenv.mkDerivation (finalAttrs: {
   '';
 
   # Add a ‘qemu-kvm’ wrapper for compatibility/convenience.
-  postInstall = lib.optionalString (!toolsOnly) ''
+  postInstall = lib.optionalString (!minimal) ''
     ln -s $out/bin/qemu-system-${stdenv.hostPlatform.qemuArch} $out/bin/qemu-kvm
   '';
 
@@ -282,7 +290,13 @@ stdenv.mkDerivation (finalAttrs: {
     platforms = platforms.unix;
   }
   # toolsOnly: Does not have qemu-kvm and there's no main support tool
-  // lib.optionalAttrs (!toolsOnly) {
+  # userOnly: There's one qemu-<arch> for every architecture
+  // lib.optionalAttrs (!toolsOnly && !userOnly) {
     mainProgram = "qemu-kvm";
+  }
+  # userOnly: Only meaningful on linux
+  // lib.optionalAttrs userOnly {
+    platforms = lib.platforms.linux;
+    description = "QEMU User space emulator - launch executables compiled for one CPU on another CPU";
   };
 })
